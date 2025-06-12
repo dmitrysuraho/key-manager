@@ -1,0 +1,14 @@
+{
+  "name": "key-management-server",
+  "version": "1.0.0",
+  "description": "A server for managing encrypted keys with authentication",
+  "main": "index.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
