@@ -28,7 +28,7 @@ function hashString(str) {
 }
 
 function authMiddleware(req, res, next) {
-    if (req.path === '/activate') {
+    if (req.path.includes('/activate')) {
         return next();
     }
     const login = req.headers['x-login'];
