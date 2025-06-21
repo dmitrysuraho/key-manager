@@ -8,8 +8,8 @@ app.use(express.urlencoded({ extended: true }));
 
 const KEYS_FILE = 'keys.json';
 
-const STORED_LOGIN_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
-const STORED_PASSWORD_HASH = '8825c1e5c216ced76e5b72ed6d38e0b70272cfbed02febf0782be0203e6e3861';
+const STORED_LOGIN_HASH = 'faf43e79c16baaa893e3d6a8c849816498abcddea240c831fcebd8c8524f2d1d';
+const STORED_PASSWORD_HASH = '5ee5c94ac86c6161a6641fc156ad4f650714f71a4bf762e0450509a2f6a98a1d';
 
 function readKeys() {
     if (!fs.existsSync(KEYS_FILE)) {
@@ -50,16 +50,16 @@ const ALGORITHM = 'aes-256-cbc';
 const SECRET_KEY = crypto.createHash('sha256').update('c322570df7925ad7daced4173df308a00a979a29eaf356889a750017c7407f13').digest();
 const IV_LENGTH = 16;
 
-function encryptDate(dateStr) {
+function encrypt(str) {
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, SECRET_KEY, iv);
-    let encrypted = cipher.update(dateStr, 'utf8', 'hex');
+    let encrypted = cipher.update(str, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
 }
 
-function decryptDate(encryptedStr) {
-    const parts = encryptedStr.split(':');
+function decrypt(str) {
+    const parts = str.split(':');
     if (parts.length !== 2) throw new Error('Invalid encrypted data');
     const iv = Buffer.from(parts[0], 'hex');
     const encryptedText = parts[1];
@@ -71,8 +71,17 @@ function decryptDate(encryptedStr) {
 
 function isExpired(encryptedDate) {
     try {
-        const decryptedDateStr = decryptDate(encryptedDate);
+        const decryptedDateStr = decrypt(encryptedDate);
         return Date.now() > new Date(decryptedDateStr).getTime();
+    } catch (e) {
+        return true;
+    }
+}
+
+function isDateExpired(encryptedStr) {
+    try {
+        const decryptedStr = decrypt(encryptedStr);
+        return Date.now() > new Date(decryptedStr.split(';')[0]).getTime();
     } catch (e) {
         return true;
     }
@@ -98,12 +107,38 @@ app.post('/activate', (req, res) => {
     }
 });
 
+app.post('/activate/:script', (req, res) => {
+    const { key, device } = req.body;
+    if (!key || !device) {
+        return res.status(400).json({ error: 'Key and device are required' });
+    }
+    const keysObj = readKeys();
+    if (!(key in keysObj) || isDateExpired(key)) {
+        return res.json(false);
+    }
+    const currentValue = keysObj[key];
+    const deviceHash = hashString(device);
+    const scripts = decrypt(key).split(';')[1];
+    const script =  req.params.script;
+    if (script === 'менеджер' || scripts.includes('все') || scripts.includes(script))
+    {
+        if (!currentValue) {
+        	keysObj[key] = deviceHash;
+        	writeKeys(keysObj);
+        	return res.json(scripts);
+    	} else {
+        	return res.json(currentValue === deviceHash ? scripts : false);
+    	}
+    }
+    return res.json(false);
+});
+
 app.post('/addKey', (req, res) => {
-   const { date } = req.body;
-   if (!date) {
-       return res.status(400).json({ error: 'Date is required' });
+   const { date, scripts } = req.body;
+   if (!date || !scripts) {
+       return res.status(400).json({ error: 'Invalid params' });
    }
-   const encryptedKey = encryptDate(date);
+   const encryptedKey = encrypt(`${date};${scripts}`);
    const keysObj = readKeys();
    if (encryptedKey in keysObj) {
        return res.status(400).json({ error: 'Encrypted key already exists' });
