@@ -78,7 +78,7 @@ function isExpired(encryptedDate) {
     }
 }
 
-function isDateExpired(encryptedStr) {
+function isKeyExpired(encryptedStr) {
     try {
         const decryptedStr = decrypt(encryptedStr);
         return Date.now() > new Date(decryptedStr.split(';')[0]).getTime();
@@ -113,7 +113,7 @@ app.post('/activate/:script', (req, res) => {
         return res.status(400).json({ error: 'Key and device are required' });
     }
     const keysObj = readKeys();
-    if (!(key in keysObj) || isDateExpired(key)) {
+    if (!(key in keysObj) || isKeyExpired(key)) {
         return res.json(false);
     }
     const currentValue = keysObj[key];
@@ -125,12 +125,13 @@ app.post('/activate/:script', (req, res) => {
         if (!currentValue) {
         	keysObj[key] = deviceHash;
         	writeKeys(keysObj);
-        	return res.json(scripts);
+        	return res.json(true);
     	} else {
-        	return res.json(currentValue === deviceHash ? scripts : false);
+        	return res.json(currentValue === deviceHash);
     	}
+    } else {
+        return res.json(false);
     }
-    return res.json(false);
 });
 
 app.post('/addKey', (req, res) => {
