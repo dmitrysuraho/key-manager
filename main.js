@@ -169,7 +169,7 @@ app.put('/clearExpired', (req, res) => {
    const removedKeys = [];
    for (const key in {...keysObj}) { 
        try {
-           if (isExpired(key)) {
+           if (isKeyExpired(key)) {
                delete keysObj[key];
                removedKeys.push(key);
            }
